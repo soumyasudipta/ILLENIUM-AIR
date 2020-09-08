@@ -4,10 +4,12 @@ import axios from "axios";
 // Login - get user token
 
 class DatabaseMethods {
-    static getCart() {
+
+    // Add Product to Cart
+    static addToCart(productID) {
         return new Promise((resolve, reject) => {
             axios
-            .get("/api/checkout/process", { headers: { 'Authorization': `${localStorage.getItem('jwtToken')}`}})
+            .get(`/api/customer/cart/add?productid=${productID}`, { headers: { 'Authorization': `${localStorage.getItem('jwtToken')}`}})
             .then(res => {
                 const data = res.data
                 resolve(
@@ -22,6 +24,26 @@ class DatabaseMethods {
         })
     }
 
+    // Read Cart
+    static getCart() {
+        return new Promise((resolve, reject) => {
+            axios
+            .get("/api/customer/cart", { headers: { 'Authorization': `${localStorage.getItem('jwtToken')}`}})
+            .then(res => {
+                const data = res.data
+                resolve(
+                    data.map(get => ({
+                        ...get
+                    }))
+                )
+            })
+            .catch((err)=>{
+                reject(err)
+            })
+        })
+    }
+
+    // Update Cart
     static updateCart(productID, updateQuantity) {
         return new Promise((resolve, reject) => {
             axios
@@ -40,10 +62,11 @@ class DatabaseMethods {
         })
     }
 
-    static getGenerateBill() {
+    // Generate Invoice
+    static createInvoice() {
         return new Promise((resolve, reject) => {
             axios
-            .get(`/api/checkout/generate`, { headers: { 'Authorization': `${localStorage.getItem('jwtToken')}`}})
+            .get(`/api/checkout/invoice/generate`, { headers: { 'Authorization': `${localStorage.getItem('jwtToken')}`}})
             .then(res => {
                 const data = res.data
                 resolve(
@@ -58,10 +81,11 @@ class DatabaseMethods {
         })
     }
 
+    // Read Orders
     static getOrders() {
         return new Promise((resolve, reject) => {
             axios
-            .get(`/api/checkout/orders`, { headers: { 'Authorization': `${localStorage.getItem('jwtToken')}`}})
+            .get(`/api/checkout/invoice`, { headers: { 'Authorization': `${localStorage.getItem('jwtToken')}`}})
             .then(res => {
                 const data = res.data
                 resolve(
@@ -76,9 +100,10 @@ class DatabaseMethods {
         })
     }
 
+    // Read Individual Invoice Details
     static getInvoiceDetails(invoiceNumber) {
         return new Promise((resolve, reject) => {
-            axios.get(`/api/checkout/orders/${invoiceNumber}`, { headers: { 'Authorization': `${localStorage.getItem('jwtToken')}`}})
+            axios.get(`/api/checkout/invoice/${invoiceNumber}`, { headers: { 'Authorization': `${localStorage.getItem('jwtToken')}`}})
                 .then(res => {
                     const data = res.data
                     resolve(

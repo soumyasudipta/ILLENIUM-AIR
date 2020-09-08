@@ -106,6 +106,21 @@ router.post("/login", (req, res) => {
     })
 })
 
+// Get Cart
+router.get('/cart', verifyToken, async (req, res) => {
+    // Verify token
+    jwt.verify(req.token, secretOrKey, async (err, authData) => {
+        if(err) {
+            res.send([{code: 403, result: err}])
+        } else {
+            // Get result from database 
+            const result = await getCart(authData['email'])
+            // Send result
+            res.send(result)
+        }
+    })
+})
+
 // Add to Cart
 router.get('/cart/add', verifyToken, async (req, res) => {
     // Get URL Params
@@ -116,11 +131,10 @@ router.get('/cart/add', verifyToken, async (req, res) => {
         if(err) {
             res.send([{code: 403, result: err}])
         } else {
-            const productDetails = await getInventory(productID)
             // Get result from database 
-            const result = await insertIntoCart(authData['email'], productID, productDetails['mrp'], productDetails['name'])
+            const result = await insertIntoCart(authData['email'], productID)
             // Send result
-            res.send([{code: 200, result}])
+            res.send(result)
         }
     })
 })
@@ -139,7 +153,7 @@ router.get('/cart/update', verifyToken, async (req, res) => {
             // Get result from database 
             const result = await updateCart(authData['email'], productID, quantity)
             // Send result
-            res.send([{code: 200, result}])
+            res.send(result)
         }
     })
 })
@@ -180,11 +194,14 @@ async function getInventory(productID){
 }
 
 // Insert to Cart
-async function insertIntoCart(email, productID, price, name) {
+async function insertIntoCart(email, productID) {
+    // Get Details from Inventory
+    const productDetails = await getInventory(productID)
+
     // Check if product exists in the cart
     const result = await User.findOne({ email:email}, {cart: { $elemMatch: {product: productID}} })
-                            .then(res => { return res['cart'] })
-                            .catch(err => { console.log(err)})
+                             .then(res => { return res['cart'] })
+                             .catch(err => { console.log(err)})
 
     // Check cart data
     if(result.length !== 0) {
@@ -192,12 +209,11 @@ async function insertIntoCart(email, productID, price, name) {
         return await updateCart(email, productID, 1)
     } else {
         // Add if product does not exist
-        await User.updateOne({ email: email }, { $push: { cart: { product: productID,name: name, quantity: 1,price: price, totalprice:price } } })
-                .then(res => { return res })
-                .catch(err =>{ return err })
-
-        // Return the cart data
-        return await getCart(email)
+        return await User.findOneAndUpdate({ email: email }, 
+                                    { $push: { cart: { product: productID,name: productDetails['name'], quantity: 1,price: productDetails['mrp'], totalprice: productDetails['mrp'] } } },
+                                    { new: true })
+                         .then(result => { return [{ code: 200, result: result['cart'] }] })
+                         .catch(error =>{ return [{ code: 404, result: error }] })
     }
 }
 
@@ -205,38 +221,44 @@ async function insertIntoCart(email, productID, price, name) {
 async function getCart(email) {
     // Return user's cart data
     return await User.findOne({ email: email})
-                    .then(res => { return res['cart'] })
-                    .catch(err => { console.log(err) })
+                     .then(result => { return [{ code: 200, result: result['cart']}] })
+                     .catch(error => { return [{ code: 404, result: error }] })
 }
 
 // Update Cart Data
 async function updateCart(email, productID, updateQuantity) {
     // Get available quantity from inventory
-    const available = await Inventory.findOne({ _id: productID }, { mrp: 1, quantity: 1 })
-                                    .then(res => { return res })
-                                    .catch(err => { return err })
+    const available = await Inventory.findOne({ _id: productID }, 
+                                              { mrp: 1, quantity: 1 })
+                                     .then(res => { return res })
+                                     .catch(err => { console.log(err) })
 
     // Get added quantity from user's cart
-    const quantity = await User.find({ email:email}, {cart: { $elemMatch: { product: productID } } })
-                                .then(res => { return res[0]['cart'][0]['quantity'] })
-                                .catch(err => { console.log(err) })
+    const quantity = await User.findOne({ email:email}, 
+                                     {cart: { $elemMatch: { product: productID } } })
+                               .then(res => { return res['cart'][0]['quantity'] })
+                               .catch(err => { console.log(err) })
 
     // Check if the produt can be added
     if(quantity + updateQuantity <= available['quantity']) {
-        // Remove product if product in cart reaches zero else update the cart
+        const options = { new: true }
+        // Remove product if product in cart reaches zero else update the cart and return it
         if(quantity + updateQuantity === 0) {
-            await User.updateOne({ email: email}, { $pull: { cart: { product: productID } } })
-                        .then(res => { return res })
-                        .catch(err => {console.log(err)})['nModified']
-        } else {
-            await User.updateOne({ email: email, cart: { $elemMatch: {product: productID } }}, {$inc: { 'cart.$.quantity': updateQuantity ,'cart.$.totalprice': available['mrp']*updateQuantity}})
-                        .then(res => { return res })
-                        .catch(err => {console.log(err)})['nModified']
+            return await User.findOneAndUpdate({ email: email}, 
+                                               { $pull: { cart: { product: productID } } }, 
+                                               { new: true })
+                             .then(result => { return [{ code: 200, result: result['cart'] }] })
+                             .catch(error => { return [{ code: 404, result: error }] })
+        }
+        // Increment/ Decrement by 1 and return updated cart
+        else {
+            return await User.findOneAndUpdate({ email: email, cart: { $elemMatch: {product: productID } }}, 
+                                               { $inc: { 'cart.$.quantity': updateQuantity ,'cart.$.totalprice': available['mrp']*updateQuantity } }, 
+                                               { new: true })
+                             .then(result => { return [{ code: 200, result: result['cart'] }] })
+                             .catch(error => { return [{ code: 404, result: error }] })
         }
     }
-
-    // Return cart data
-    return await getCart(email)
 }
 
 module.exports = router

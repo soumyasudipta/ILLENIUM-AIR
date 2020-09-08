@@ -15,7 +15,6 @@ import PrivateRoute from "./components/private-route/PrivateRoute";
 import Dashboard from "./components/dashboard/Dashboard";
 import Customer from "./components/dashboard/Customer";
 import Checkout from "./components/dashboard/Checkout";
-import Generate from "./components/dashboard/Generate";
 import Error from './components/error/Error'
 
 import "./App.css";
@@ -55,7 +54,6 @@ class App extends Component {
               <PrivateRoute exact path="/dashboard" component={Dashboard} />
               <PrivateRoute exact path="/customer" component={Customer} />
               <PrivateRoute exact path="/checkout" component={Checkout} />
-              <PrivateRoute exact path="/generate" component={Generate} />
               <PrivateRoute exact path="/orders" component={Orders} />
               <PrivateRoute exact path="/orders/:id" component={Details} />
               <Route component={Error} />

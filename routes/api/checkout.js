@@ -8,9 +8,6 @@ const router = express.Router()
 // Connection String for MongoDB
 const connection_string = encodeURI('mongodb+srv://illenium_backend:Sc97s820skQKJWQb@illenium.lyr07.gcp.mongodb.net/illenium?retryWrites=true&w=majority')
 
-// constants
-
-
 // Load Bill model
 const User = require('../../models/User')
 const Bill = require('../../models/Bill')
@@ -18,72 +15,41 @@ const Bill = require('../../models/Bill')
 //Get Methods
 router.get('/',(req,res) => res.send("checkout"))
 
-router.get('/process', verifyToken, async (req ,res)=>{
-
+// Create Invoice
+router.get('/invoice/generate', verifyToken, async (req, res)=> {
     jwt.verify(req.token, 'illenium', async (err, authData) => {
         if(err) {
-            res.sendStatus(403)
-        } else {
-            const result = await checkout(authData['email'])
-
-            if(result == 0) {
-                res.send([{code: 404, result}])
-            } else {
-                res.send([{code: 200, result}])
-            }
-        }
-    })
-
-})
-
-router.get('/generate', verifyToken, async (req, res)=> {
-
-    jwt.verify(req.token, 'illenium', async (err, authData) => {
-        if(err) {
-            res.sendStatus(403)
+            res.send([{code: 403, result: err}])
         } else {
             const result = await createBill(authData['email'])
-
-            if(result.length == 0)
-                res.send([{code: 404, result}])
-            else 
-                res.send([{code: 200, result}])
+            res.send(result)
         }
     })
 })
 
-router.get('/orders', verifyToken, async (req, res)=> {
+// Get Invoice
+router.get('/invoice', verifyToken, async (req, res)=> {
     jwt.verify(req.token, 'illenium', async (err, authData) => {
         if(err) {
-            res.sendStatus(403)
+            res.send([{code: 403, result: err}])
         } else {
-            const result = await getOrders(authData['email'])
-
-            if(result.length == 0) {
-                res.send([{code: 404, result}])
-            } else {
-                res.send([{code: 200, result}])
-            }
+            const result = await getInvoice(authData['email'])
+            res.send(result)
         }
     })
 })
 
-router.get('/orders/:id', verifyToken, async (req, res) => {
+// Get Invoice Details
+router.get('/invoice/:id', verifyToken, async (req, res) => {
     jwt.verify(req.token, 'illenium', async (err, authData) => {
         if(err) {
-            res.sendStatus(403)
+            res.send([{code: 403, result: err}])
         } else {
-            let result = await getInvoiceDetails(authData['email'], req.params.id)
-
-            if(result.length == 0) {
-                res.send([{code: 404, result}])
-            } else {
-                res.send([{code: 200, result}])
-            }
+            const result = await getInvoiceDetails(authData['email'], req.params.id)
+            res.send(result)
         }
     })
 })
-
 
 // Verify Token
 function verifyToken(req, res, next) {
@@ -104,30 +70,17 @@ function verifyToken(req, res, next) {
     }
 }
 
-
 /*
     Database Methods
 */
 
-async function getOrders(email) {
-    return await Bill.find({ email: email })
-                    .sort({_id: -1})
-                    .then( res => { return res })
-                    .catch(err => { console.log(err) })
-}
-
-async function getCart(email) {
-    return await User.find({ email: email }, { cart: 1 })
-                    .then(res => { return res[0]['cart'] })
-                    .catch(err => { console.log(err) })
-}
-
 async function updateCart(email) {
     return await User.updateOne({ email: email }, { $set: { cart: [] } })
-                    .then()
-                    .catch(err => { console.log(err) })
+                     .then()
+                     .catch(err => { console.log(err) })
 }
 
+// Get today's date
 function getCurrentDate() {
     let today = new Date();
 
@@ -143,10 +96,8 @@ function getCurrentDate() {
     return today
 }
 
-
-async function generateOrderID() {
-    const client = await connectDB()
-
+// Geberate Invoice ID
+async function generateInvoiceID() {
     const today = getCurrentDate()
 
     const result = await Bill.find({ _id: { $regex: today } } , { _id: 1 })
@@ -163,62 +114,15 @@ async function generateOrderID() {
         generatedID = String(parseInt(result[0]['_id']) + 1)
     }
 
-    client.close()
     return generatedID
 }
 
-async function getInventory(products) {
-    const client = await connectDB()
-    const available = await client
-        .db('illenium')
-        .collection('inventories')
-        .find({ _id: {$in: products}} , { projection:{ }})
-        .toArray()
-
-    client.close()
-
-    if (available.length > 0) { 
-        return available
-    } else {
-        return 0
-    }
-}
-
-async function checkout(email) {
-    const cart = await getCart(email)
-    if(cart.length == 0) return 0
-
-    let productIds = []
-    for (x of cart) {
-        productIds.push(x['product'])
-    }
-
-    const inventory = await getInventory(productIds)
-
-    if(inventory == 0) return 0
-
-    let msg = []
-    for (x of cart) {
-        for (y of inventory) {
-            if (x['product'] == y['_id']) {
-                if (x['quantity'] > y['quantity']) {
-                    msg.push({'product': x['product'], 'quantity': x['quantity'] - y['quantity']})
-                }
-            }
-        }
-    }
-
-    if (msg.length > 0) return 0
-    
-    return cart
-    
-}
-
+// Create Bill
 async function createBill(email) {
     return await User.findOne({ email: email }, { cart: 1 })
                     .then(async cart => {
                         if(cart['cart'].length > 0) {
-                            let orderID = String(await generateOrderID())
+                            let orderID = String(await generateInvoiceID())
 
                             let totalprice = 0
                             let totalitems = 0
@@ -240,30 +144,30 @@ async function createBill(email) {
                             const bill = await newBill.save()
                                 .then(async bill => {
                                     await updateCart(email)
-                                    return bill
+                                    return [{code: 200, result:bill}]
                                 })
-                                .catch(err => console.log(err))
+                                .catch(error =>[{code: 404, error}])
 
                             return bill
                         } else {
-                            return []
+                            return [{code: 404, error:"No items found in cart"}]
                         }
-                    }).catch( err => {return err})
+                    }).catch( error => { return [{code: 404, error}] })
 }
 
+// Get Invoice
+async function getInvoice(email) {
+    return await Bill.find({ email: email })
+                     .sort({_id: -1})
+                     .then( result => { return [{code: 200, result}] })
+                     .catch( error => { return [{code: 404, error}] })
+}
+
+// Get Invoice Details
 async function getInvoiceDetails(email, invoiceID) {
     return await Bill.find({ email, email, _id: invoiceID })
-                    .then(res => { return res })
-                    .catch(err => { console.log(err) })
-}
- 
-async function connectDB() {
-    const client = await mongodb.MongoClient.connect(connection_string, {
-        useUnifiedTopology: true,
-        useNewUrlParser: true
-    })
-
-    return client
+                     .then(result => { return [{code: 200, result}] })
+                     .catch(error => { return [{code: 404, error}] })
 }
 
 module.exports = router

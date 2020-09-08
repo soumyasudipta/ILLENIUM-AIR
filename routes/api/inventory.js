@@ -26,14 +26,14 @@ router.post('/create', async (req, res) => {
 
     // Get result from database operation
     const result = await Inventory.create({ _id: productID, name, brand, mrp, weight, quantity})
-                                    .then(res => { 
+                                  .then(res => { 
                                         // Return Result message
                                         return [{code: 200, msg: res}]
-                                    })
-                                    .catch(err => {
+                                  })
+                                  .catch(err => {
                                         // Return Error message 
                                         return [{code: 404, msg: err}] 
-                                    })
+                                  })
     
     // Send result back 
     res.send(result)
@@ -46,14 +46,14 @@ router.get('/search', async (req, res) => {
 
     // Get result from database operation
     const result = await Inventory.find({name: new RegExp(`.*${name}.*`, 'i')})
-                                    .then(res => { 
+                                  .then(res => { 
                                         // Return result message
                                         return [{ code: 200, msg: res}] 
-                                    })
-                                    .catch(err => { 
+                                  })
+                                  .catch(err => { 
                                         // Return error message
                                         return [{ code: 404, msg: err}]
-                                    })
+                                  })
     
     // Send result back
     res.send(result)
@@ -68,17 +68,17 @@ router.put('/update', async (req, res) => {
 
     // Get result from database operation
     const result = await Inventory.updateOne({ _id: productID }, { $inc: { quantity : quantity } })
-                                    .then(res => { 
+                                  .then(res => { 
                                         // Return Result message
                                         if(res['nModified'] === 1)    
                                             return [{code: 200, msg: productID + ' updated'}] 
                                         else
                                             return [{code: 200, msg: productID + ' not Found'}]
-                                    })
-                                    .catch(err => {
+                                  })
+                                  .catch(err => {
                                         // Return Error message 
                                         return [{code: 404, msg: err}] 
-                                    })
+                                  })
 
     // Send result back
     res.send(result)
@@ -91,17 +91,17 @@ router.delete('/delete', async (req, res) => {
 
     // Get result from database operation
     const result = await Inventory.deleteOne({ _id: productID})
-                                    .then(res => {
+                                  .then(res => {
                                         // Return Result message
                                         if (res['deletedCount'] === 1)
                                             return [{code: 200, msg: productID + " Deleted"}]
                                         else
                                             return [{code: 200, msg: productID + " Not Found"}]
-                                    })
-                                    .catch(err => {
+                                  })
+                                  .catch(err => {
                                         // Return Error message
                                         return [{code: 404, msg: err}]
-                                    })
+                                  })
     // Send result back
     res.send(result)
 })
@@ -155,15 +155,5 @@ router.put('/payment', async (req, res) => {
     // Send result back
     res.send(result)
 })
-
-/*
-###################### METHODS ######################
-*/
-async function getOrder(id) {
-    return Bill.findOne({ _id:id }, {_id:0, items:1})
-                .then(res => { return res['items'] })
-                .catch(err => { console.log(err) })
-
-}
 
 module.exports = router
