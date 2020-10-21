@@ -1,32 +1,41 @@
-import React, { Component } from "react";
+import React, { Component, useCallback } from "react";
 import PropTypes from "prop-types";
 import { connect } from "react-redux";
 import { Link } from 'react-router-dom';
 import Webcam from 'react-webcam'
 
 class Customer extends Component {
+    constructor() {
+        super();
+        this.state = {
+            imageData : null
+        }
+      }
 
-    state = {
-        imageData: null,
-        image_name: "",
-        saveImage: false
-    }
+    componentDidMount() {
+        setInterval(() => this.capture(), 1000);
+      }
 
     setRef = (webcam) => {
         this.webcam = webcam
     }
 
     capture = () => {
-        const imageSrc = this.webcam.getScreenshot()
-        this.setState({
-            imageData: imageSrc
-        })
+        const imageData = this.webcam.getScreenshot()
+        this.setState({ imageData })
+    }
+
+    getLatestVideo = () => {
+        // Return a base64 encoded string which can be converted to image
+        // and put in the model to 
+        return this.state.imageData
     }
 
     render() {
-        
+
         const videoConstraints = {
-            facingMode: { exact: "environment" }
+            // facingMode: { exact: "environment" } // Use for Mobile
+            facingMode: "user" // Use when in Development Mode
           };
 
         return (
@@ -49,19 +58,15 @@ class Customer extends Component {
                             style={{width:"100%",margin:0,padding:0}}
                         
                         />
-                        {/* <div>
-                            <p style={{ wordBreak: "break-word" }} id="text"></p>
-                        </div> */}
                     </div>
+                    {/* <div>
+                        <button onClick={this.getLatestVideo}>Log Image Data</button>
+                    </div> */}
                 </div>
             </div>
         )
     }
 }
-
-Customer.propTypes = {
-    auth: PropTypes.object.isRequired
-};
 
 const mapStateToProps = state => ({
     auth: state.auth
