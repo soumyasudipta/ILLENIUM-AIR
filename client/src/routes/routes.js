@@ -5,6 +5,25 @@ import axios from "axios";
 
 class DatabaseMethods {
 
+    // Search Product
+    static searchCart(productToSearch) {
+        return new Promise((resolve, reject) => {
+            axios
+            .get(`/api/customer/cart/add?productid=${productToSearch}`, { headers: { 'Authorization': `${localStorage.getItem('jwtToken')}`}})
+            .then(res => {
+                const data = res.data
+                resolve(
+                    data.map(get => ({
+                        ...get
+                    }))
+                )
+            })
+            .catch((err)=>{
+                reject(err)
+            })
+        })
+    }
+
     // Add Product to Cart
     static addToCart(productID) {
         return new Promise((resolve, reject) => {

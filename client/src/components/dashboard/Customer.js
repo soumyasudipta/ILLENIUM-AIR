@@ -1,5 +1,4 @@
-import React, { Component, useCallback } from "react";
-import PropTypes from "prop-types";
+import React, { Component} from "react";
 import { connect } from "react-redux";
 import { Link } from 'react-router-dom';
 import Webcam from 'react-webcam'
@@ -8,27 +7,77 @@ class Customer extends Component {
     constructor() {
         super();
         this.state = {
-            imageData : null
+            imageData : null,
+            processPrediction: false,
+            model: null
         }
       }
 
-    componentDidMount() {
-        setInterval(() => this.capture(), 1000);
+    async componentDidMount() {
+        // Load Tensorflow model when component Mounted
+        
+        // Uncomment it
+        // let model = await tf.loadLayersModel('model.json')
+        // this.setState({ model })
+
+        // Run check every one sec
+        setInterval(() => {
+            if (this.state.processPrediction === false) { 
+                this.capture() 
+            }
+        }, 1000);
       }
 
     setRef = (webcam) => {
         this.webcam = webcam
     }
 
-    capture = () => {
-        const imageData = this.webcam.getScreenshot()
-        this.setState({ imageData })
+    capture = async () => {
+        // Set processprediction to true to stop getting additional data
+        this.setState({processPrediction : true})
+        
+        // Get Image from camera
+        const imageDataFromCamera = this.webcam.getScreenshot()
+        this.setState({ imageData: imageDataFromCamera })
+
+        // Create an image of jpeg type from base64 string
+        let image = new Image()
+        image.src = imageDataFromCamera
+
+        // get result after resizing the image
+        let result = await this.imageToDataUri(image, 160, 160)
+        console.log(result)
+
+        // Prediction
+        let prediction = null
+        // let prediction = this.state.model.predict(tf.browser.fromPixels(result))
+
+        // Check prediction then set state or create dialog
+        if (prediction === null || prediction === undefined) {
+            this.setState({processPrediction : false})
+        } else {
+
+            // Do some task
+            this.setState({processPrediction : false})
+        }
+
     }
 
-    getLatestVideo = () => {
-        // Return a base64 encoded string which can be converted to image
-        // and put in the model to 
-        return this.state.imageData
+    imageToDataUri = (img, width, height) => {
+
+        // create an off-screen canvas
+        let canvas = document.createElement('canvas')
+        let ctx = canvas.getContext('2d');
+    
+        // set its dimension to target size
+        canvas.width = width;
+        canvas.height = height;
+    
+        // draw source image into the off-screen canvas:
+        ctx.drawImage(img, 0, 0, width, height);
+    
+        // encode image to data-uri with base64 version of compressed image
+        return canvas.toDataURL('image/jpeg', 1.0)
     }
 
     render() {
